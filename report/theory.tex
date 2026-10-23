@@ -1,0 +1,159 @@
+\chapter{Cơ sở lý thuyết về AI Agent}
+\label{chap:theory}
+\section{Từ mô hình dự đoán đến tác tử thực hiện công việc}
+Một mô hình nhận dữ liệu đầu vào và trả về dự đoán chưa mô tả hết cách một hệ thống thông minh làm việc. Trong bài toán dự đoán giá nhà, đầu ra có thể là một con số. Nhưng với yêu cầu tìm căn nhà phù hợp, hệ thống còn phải xác định tiêu chí, lấy danh sách tin đăng, loại những căn không đáp ứng và kiểm tra lại thông tin thiếu. Mỗi kết quả trung gian có thể làm thay đổi bước xử lý tiếp theo. Đơn vị cần xem xét lúc này là cả quá trình ra quyết định và thực hiện hành động.
+
+Google Cloud mô tả AI agent là hệ thống phần mềm dùng AI để theo đuổi mục tiêu thay người dùng, có khả năng lập luận, lập kế hoạch và ghi nhớ. IBM nhấn mạnh việc tự tổ chức công việc với các công cụ sẵn có. McKinsey đặt agent trong bối cảnh một thành phần phần mềm được giao quyền thực hiện nhiệm vụ cho người dùng hoặc hệ thống khác \cite{google,ibm,mckinsey}. Ba cách diễn đạt cùng hướng đến quan hệ giữa mục tiêu, quyết định và hành động, nhưng chọn các góc nhìn khác nhau.
+
+\textbf{Cách hiểu được sử dụng trong bài:} AI agent là một tác tử nhận thông tin từ môi trường, lựa chọn hành động để đạt mục tiêu, thực hiện hành động và sử dụng kết quả nhận được để quyết định bước tiếp theo. Tính tự chủ cần được đặt trong phạm vi đã giao: tác tử có thể tự chọn bước xử lý nhưng vẫn chịu các điều kiện về dữ liệu, công cụ và điểm dừng.
+
+\begin{figure}[H]\centering
+\begin{tikzpicture}[node distance=7mm, b/.style={draw,rounded corners=2pt,align=center,minimum height=10mm,text width=30mm},a/.style={-{Latex},thick}]
+\node[b] (obs) {Quan sát\\môi trường};
+\node[b,right=of obs] (dec) {Chọn hành động\\theo mục tiêu};
+\node[b,right=of dec] (act) {Thực hiện\\hành động};
+\node[b,right=of act] (feed) {Nhận kết quả\\và phản hồi};
+\draw[a] (obs)--(dec);\draw[a] (dec)--(act);\draw[a] (act)--(feed);
+\draw[a] (feed.south)--++(0,-0.7)-|(obs.south);
+\end{tikzpicture}
+\caption{Vòng lặp quan sát và hành động. Sơ đồ tự xây dựng để mô tả cách hiểu về tác tử.}
+\end{figure}
+
+Điểm cần kiểm tra không chỉ là tác tử trả lời có hợp lý hay không, mà còn là môi trường đã thay đổi đúng yêu cầu hay chưa. Với ví dụ tìm nhà, danh sách phải thỏa điều kiện thực tế. Với tác tử trong mê cung, vị trí phải đi từ ô xuất phát đến đích bằng các bước hợp lệ. Một lời giải thích nghe thuyết phục không thay thế được bằng chứng hành động.
+
+Từ cách hiểu trên, một bài thực hành nhỏ vẫn có thể biểu diễn được những thành phần cốt lõi của agent. Môi trường không nhất thiết là Internet; hành động không nhất thiết là gọi API. Một lưới ô vuông cùng bốn hướng di chuyển đã đủ để theo dõi quan sát, quyết định, phản hồi và kết quả cuối cùng.
+
+\clearpage
+\section{Đọc ba nguồn theo ba góc nhìn}
+\begin{table}[H]\centering\small
+\caption{Trọng tâm khi đọc các tài liệu được giao.}
+\begin{tabularx}{\textwidth}{@{}p{2.6cm}Y Y@{}}\toprule
+Nguồn & Trọng tâm nội dung & Câu hỏi rút ra khi thiết kế \\\midrule
+Google Cloud [1] & Năng lực của tác tử: quan sát, lập luận, hành động, kế hoạch. & Hệ thống nhận thông tin và tác động vào môi trường qua đâu? \\
+IBM [2] & Cách vận hành, công cụ và các dạng tác tử. & Cơ chế nào quyết định hành động tiếp theo? \\
+McKinsey [3] & Tổ chức công việc, phối hợp và kiểm soát khi ứng dụng. & Công việc hoàn thành theo tiêu chí nào và ai chịu trách nhiệm? \\\bottomrule
+\end{tabularx}
+\end{table}
+
+Google Cloud giúp xác định các năng lực cần xem xét khi mô tả một agent \cite{google}. Khi chuyển sang thiết kế bài toán, tôi tách các năng lực đó thành những câu hỏi có thể kiểm tra. Tác tử quan sát được toàn bộ dữ liệu hay chỉ một phần? Nó lưu lại thông tin nào? Hành động có làm thay đổi trạng thái bên ngoài hay chỉ tạo nội dung? Cách đặt câu hỏi này tránh việc liệt kê nhiều tính năng nhưng không chỉ ra chúng tham gia vào quyết định ra sao.
+
+IBM phân biệt các dạng tác tử từ phản xạ đơn giản đến tác tử có khả năng học \cite{ibm}. Ý nghĩa thực hành là chọn mức độ phức tạp theo bài toán. Với một điều kiện đã biết và phản ứng cố định, quy tắc có thể đủ dùng. Khi kết quả của hành động chỉ được biết sau nhiều bước thử, cần có cách đánh giá và điều chỉnh quyết định. Không có lý do đưa mô hình ngôn ngữ vào một bài toán chỉ gồm tọa độ và bốn hướng di chuyển nếu mục đích là quan sát quá trình học.
+
+McKinsey bàn về agent ở quy mô quy trình và tổ chức công việc, bao gồm phân chia nhiệm vụ, phối hợp và phản hồi \cite{mckinsey}. Từ góc nhìn này, một tác tử hoàn thành được một bước chưa đồng nghĩa toàn bộ công việc đã xong. Chẳng hạn, bước lấy dữ liệu có thể chạy thành công nhưng dữ liệu sai kỳ thời gian thì bước phân tích phía sau vẫn sai. Vì vậy, cần xác định cả kết quả trung gian và điều kiện chấp nhận đầu ra cuối cùng.
+
+\subsection{Những khái niệm không nên gộp làm một}
+Mô hình là một thành phần tính toán; agent còn bao gồm vòng điều khiển và cách tác động vào môi trường. Chatbot mô tả một hình thức tương tác bằng hội thoại. Việc giao tiếp qua chat chưa đủ để kết luận hệ thống có thể tự thực hiện một chuỗi công việc. Ngược lại, tác tử điều hướng có thể hoạt động mà không cần giao diện hội thoại.
+
+Tương tự, tự chủ và học là hai trục khác nhau. Một chương trình có thể tự chạy theo chính sách cố định. Một mô hình có thể được train trước nhưng khi sử dụng chỉ thực hiện suy luận. Trong phần thực hành, quá trình cập nhật bảng giá trị được gọi là huấn luyện; giai đoạn dùng bảng đã lưu để đi đến đích là thực thi chính sách. Việc tách hai giai đoạn giúp xác định chính xác tác tử đang học hay đang sử dụng kết quả đã học.
+
+\clearpage
+\section{Mô tả tác tử bằng trạng thái, hành động và mục tiêu}
+Để chuyển từ khái niệm sang chương trình, tôi dùng bài toán một robot đi trong lưới có vật cản. Robot bắt đầu ở ô $s_0$, mỗi lượt chọn trái, phải, lên hoặc xuống. Mục tiêu là đến ô đích với ít bước di chuyển và tránh va chạm. Đây là ví dụ minh họa tự xây dựng để phân tích thành phần hệ thống, không phải một tình huống triển khai doanh nghiệp trong ba bài đọc.
+
+\begin{table}[H]\centering\small
+\caption{Các thành phần cần xác định trước khi viết vòng lặp tác tử.}
+\begin{tabularx}{\textwidth}{@{}p{3cm}Y@{}}\toprule
+Thành phần & Cách xác định trong ví dụ điều hướng \\\midrule
+Môi trường & Lưới cố định, gồm ô trống và ô vật cản. \\
+Trạng thái & Tọa độ $(r,c)$ hiện tại của robot. \\
+Không gian hành động & Bốn phép dịch chuyển một ô theo trục hàng hoặc cột. \\
+Phản hồi & Thưởng khi tới đích; phạt bước đi và hành động không hợp lệ. \\
+Chính sách & Quy tắc chọn hành động từ trạng thái hiện tại. \\
+Điểm dừng & Đến đích, va chạm hoặc hết giới hạn bước của một lượt. \\\bottomrule
+\end{tabularx}
+\end{table}
+
+Với bản đồ cố định và chuyển động không có quán tính, tọa độ hiện tại có thể được dùng làm trạng thái. Nếu thêm pin, cửa khóa hoặc vật cản thay đổi theo thời gian, cùng một tọa độ có thể dẫn tới những quyết định khác nhau. Khi đó cần bổ sung các biến liên quan. Chọn trạng thái quá ít làm mất thông tin; chọn quá nhiều lại khiến số trường hợp cần học tăng lên.
+
+Chính sách được ký hiệu $\pi(a\mid s)$, biểu diễn xác suất chọn hành động $a$ khi đang ở trạng thái $s$. Với chính sách xác định, tác tử luôn chọn cùng một hành động tại một trạng thái. Trong huấn luyện, chính sách có thể cố ý ngẫu nhiên để thử thêm lựa chọn. Trong demo sau train, có thể khóa việc khám phá để quan sát đường đi mà tác tử đã học.
+
+Mục tiêu cũng cần chuyển thành số đo cụ thể. Chỉ đếm số lần tới đích sẽ bỏ qua trường hợp robot đi vòng rất lâu. Chỉ đếm số bước mà bỏ qua thất bại lại có thể khiến một lượt đâm tường ngay lập tức trông như có kết quả tốt. Vì vậy, tỷ lệ thành công, số bước và tổng reward phải được đọc cùng nhau.
+
+Một agent cần có giới hạn thực thi. Nếu chính sách chọn lặp lại giữa hai ô, chương trình phải kết thúc lượt sau một số bước tối đa và ghi nhận việc chưa tới đích. Giới hạn này không tạo thêm năng lực cho tác tử; nó giữ cho quá trình chạy và đánh giá có điều kiện kết thúc rõ ràng. Đây cũng là lý do phải xem trạng thái kết thúc bên cạnh con số reward.
+
+\begin{table}[H]\centering\small
+\caption{Phân biệt năm dạng tác tử trong IBM [2] theo cơ chế quyết định.}
+\begin{tabularx}{\textwidth}{@{}p{4.2cm}Y@{}}\toprule
+Dạng tác tử & Điểm phân biệt \\\midrule
+Phản xạ đơn giản & Chọn hành động theo điều kiện đang quan sát. \\
+Phản xạ dựa trên mô hình & Dùng trạng thái nội bộ để bổ sung thông tin quá khứ. \\
+Dựa trên mục tiêu & Xem xét chuỗi hành động có thể đưa tới đích. \\
+Dựa trên độ hữu ích & So sánh mức lợi ích của các kết quả có thể đạt. \\
+Có khả năng học & Điều chỉnh hành vi từ trải nghiệm và phản hồi. \\\bottomrule
+\end{tabularx}
+\end{table}
+
+\clearpage
+\section{Tác tử học và mối liên hệ với reinforcement learning}
+Trong học tăng cường, tác tử tương tác với môi trường và dùng reward để cải thiện cách chọn hành động \cite{gfg}. Người lập trình xác định luật di chuyển và cách phản hồi, còn chính sách được hình thành thông qua trải nghiệm. Bài mê cung cho phép quan sát trực tiếp quá trình này vì trạng thái và hành động đều có số lượng nhỏ.
+
+Một lượt chơi, hay episode, bắt đầu ở trạng thái xuất phát và kết thúc theo điều kiện đã đặt. Tại thời điểm $t$, tác tử quan sát $s_t$, chọn $a_t$, nhận $r_{t+1}$ và chuyển sang $s_{t+1}$. Mục tiêu thường được biểu diễn bằng tổng reward có chiết khấu:
+\begin{equation}
+G_t=\sum_{k=0}^{T-t-1}\gamma^k r_{t+k+1},\qquad 0\leq\gamma<1.
+\end{equation}
+Hệ số $\gamma$ quyết định mức ảnh hưởng của reward ở các bước sau. Trong mê cung, một hành động tốt có thể chưa mang lại thưởng ngay nhưng mở đường tới đích. Nếu chỉ nhìn reward tức thời, những ô chưa phải đích thường khó phân biệt với nhau.
+
+Q-learning lưu giá trị $Q(s,a)$ cho từng cặp trạng thái và hành động. Với bước chuyển thông thường, phép cập nhật là:
+\begin{equation}
+Q(s,a)\leftarrow Q(s,a)+\alpha\left[r+\gamma\max_{a'}Q(s',a')-Q(s,a)\right].
+\end{equation}
+Trong đó $\alpha$ là tốc độ học. Khi chuyển sang trạng thái kết thúc, phần giá trị tương lai bằng 0. Cần xử lý riêng trường hợp này để không cộng thêm một giá trị không thuộc episode đang xét.
+
+\subsection{Khám phá và khai thác}
+Nếu luôn chọn giá trị Q lớn nhất ngay từ đầu, tác tử dễ lặp lại những lựa chọn đầu tiên khi bảng Q vẫn chưa chứa thông tin hữu ích. Chính sách $\epsilon$-greedy dành xác suất $\epsilon$ để chọn ngẫu nhiên và xác suất còn lại để dùng hành động có Q cao nhất. Giảm $\epsilon$ theo episode giúp chuyển dần từ thử nghiệm sang sử dụng kinh nghiệm.
+
+Việc giảm khám phá không phải bằng chứng tự động của việc học tốt. Nếu reward không tăng hoặc chính sách vẫn không tới đích, giảm $\epsilon$ chỉ làm tác tử lặp lại sai lầm ổn định hơn. Cần kiểm tra rollout không khám phá sau từng giai đoạn và so với một chính sách chưa học.
+
+\subsection{Phạm vi của ví dụ bảng Q}
+Mê cung nhỏ phù hợp với bảng tra cứu vì có thể lưu riêng bốn giá trị tại mỗi ô. Nếu trạng thái là ảnh camera hoặc câu hội thoại, cách liệt kê này không còn phù hợp. Khi đó phải thay đổi cách biểu diễn và phương pháp học. Kết quả tốt trên một bản đồ cố định chỉ xác nhận khả năng giải môi trường đó, chưa đủ để suy ra khả năng thích nghi trên bản đồ mới.
+
+\clearpage
+\section{Agent dùng mô hình ngôn ngữ và công cụ}
+Trong hệ thống làm việc với văn bản, mô hình ngôn ngữ có thể tham gia diễn giải yêu cầu và lựa chọn công cụ. Nghiên cứu ReAct kết hợp quá trình suy luận với hành động và quan sát kết quả từ môi trường \cite{react}. Điều cần rút ra khi thiết kế phần mềm là mỗi lần gọi công cụ phải đem lại dữ liệu để cập nhật trạng thái công việc, thay vì chỉ tạo ra một danh sách hành động có vẻ hợp lý.
+
+Xét ví dụ tự xây dựng: người dùng yêu cầu tìm bài Assignment có notebook nhưng thiếu ảnh kết quả. Tác tử có thể liệt kê tệp, đọc metadata của notebook, kiểm tra các ô output, đối chiếu đường dẫn ảnh trong báo cáo rồi trả danh sách còn thiếu. Nếu kết quả kiểm tra cho biết ảnh được nhúng trực tiếp trong notebook, bước kiểm tra phải nhận diện trường hợp đó trước khi kết luận ảnh bị thiếu.
+
+\begin{figure}[H]\centering
+\begin{tikzpicture}[node distance=5mm,b/.style={draw,align=center,minimum height=10mm,text width=32mm},a/.style={-{Latex},thick}]
+\node[b] (task) {Yêu cầu và\\điều kiện hoàn tất};
+\node[b,right=of task] (select) {Chọn bước\\cần thực hiện};
+\node[b,right=of select] (tool) {Gọi công cụ\\được phép};
+\node[b,right=of tool] (check) {Kiểm tra\\kết quả thực tế};
+\draw[a] (task)--(select);\draw[a] (select)--(tool);\draw[a] (tool)--(check);
+\draw[a] (check.south)--++(0,-0.8)-|node[pos=0.25,below,font=\small]{Chưa đủ điều kiện hoàn tất}(select.south);
+\end{tikzpicture}
+\caption{Vòng điều khiển minh họa cho công việc kiểm tra tệp bằng công cụ.}
+\end{figure}
+
+Ở ví dụ trên, phần mềm cần lưu những gì đã kiểm tra, kết quả của từng công cụ và các việc còn thiếu. Bộ nhớ phục vụ duy trì ngữ cảnh công việc. Việc thêm một kết quả mới vào ngữ cảnh không đồng nghĩa với cập nhật trọng số của mô hình. Nếu gọi cả hai quá trình là ``học'' mà không giải thích, sẽ khó biết hệ thống cải thiện nhờ dữ liệu đang nhìn thấy hay nhờ một lần train mới.
+
+\subsection{Một tác tử hay nhiều tác tử}
+Tôi chỉ tách công việc thành nhiều tác tử khi mỗi phần có đầu vào, đầu ra và tiêu chí đánh giá đủ rõ. Chẳng hạn, một thành phần kiểm tra code có thể trả danh sách cell lỗi; một thành phần kiểm tra tài liệu trả các hình chưa được tham chiếu. Thành phần điều phối phải đối chiếu các kết quả trước khi kết luận. Nếu tất cả cùng đọc một dữ liệu thiếu và cùng bỏ qua một điều kiện, việc có nhiều tác tử không sửa được lỗi gốc.
+
+Với mê cung nhỏ, một tác tử là đủ. Thêm bước hội thoại hay điều phối không giúp kiểm chứng phép cập nhật Q. Lựa chọn này giữ mối quan hệ giữa kiến thức và kết quả chạy dễ theo dõi: hành động đến từ bảng Q, phản hồi đến từ môi trường, và đường đi demo là chuỗi quyết định thật của chính sách đã học.
+
+\clearpage
+\section{Đánh giá tác tử và liên hệ với phần thực hành}
+Một tác tử cần được đánh giá theo nhiệm vụ đã giao. Với môi trường điều hướng, tôi dùng bốn câu hỏi: có đến đích không, mất bao nhiêu bước, tổng reward là bao nhiêu và kết quả có lặp lại được không. Các câu hỏi này xác định dữ liệu cần ghi ngay từ lúc viết vòng train, thay vì chỉ nhìn một ảnh đường đi sau cùng.
+
+\begin{table}[H]\centering\small
+\caption{Cách đọc các bằng chứng trong thực nghiệm điều hướng.}
+\begin{tabularx}{\textwidth}{@{}p{3cm}Y@{}}\toprule
+Bằng chứng & Kết luận có thể kiểm tra \\\midrule
+Log của cell train & Episode thực sự đã chạy và các thống kê thay đổi theo thời gian. \\
+Đường reward và số bước & Xu hướng của hành vi trong điều kiện có khám phá. \\
+Đánh giá với $\epsilon=0$ & Năng lực của chính sách khi dùng trực tiếp bảng Q. \\
+Đối chiếu đường ngắn nhất & Khoảng cách giữa đường học được và nghiệm tối ưu trên lưới. \\
+Các khung hình demo & Thứ tự vị trí robot tự chọn khi thực thi. \\
+Notebook có output & Mã, cấu hình và bằng chứng chạy được giữ cùng một nơi. \\\bottomrule
+\end{tabularx}
+\end{table}
+
+Một đường reward chưa phẳng không nhất thiết là lỗi huấn luyện: tác tử vẫn có thể ngẫu nhiên chọn hành động không tốt khi $\epsilon>0$. Ngược lại, một rollout đẹp cũng chưa đủ nếu đó chỉ là lượt được chọn ra giữa nhiều thất bại. Vì vậy, đồ thị train cần đi cùng quy trình đánh giá đã nêu số lượt, seed, giới hạn bước và chính sách đang sử dụng.
+
+Trong mê cung tất định, nhiều lần chạy một chính sách cố định từ cùng một điểm chỉ lặp lại cùng một bài kiểm tra. Nếu kết quả là 100\%, con số đó không chứng minh tính tổng quát. Có thể kiểm tra thêm nhiều seed huấn luyện hoặc các trạng thái xuất phát khác, nhưng phải phân biệt chúng với bản đồ mới. Các nhận xét về độ ổn định cần giới hạn đúng theo những trường hợp thực sự đã chạy.
+
+\subsection{Điều kiện kiểm soát khi tác tử tự hoạt động}
+Khi tự xây dựng một tác tử, tôi đặt giới hạn số bước và lưu hành động để truy lại nguyên nhân thất bại. Với công việc trên tệp hoặc dịch vụ, có thể áp dụng cùng nguyên tắc bằng giới hạn số lần gọi công cụ và kiểm tra kết quả sau mỗi thao tác. Quyền thực hiện hành động phải gắn với nhiệm vụ cụ thể. Không thể lấy việc trả lời đúng một câu hỏi làm bằng chứng cho quyền thay đổi dữ liệu liên quan.
+
+Phần thực hành tiếp theo tập trung vào learning agent trong một môi trường nhỏ có thể kiểm tra toàn bộ. Bảng Q đóng vai trò kinh nghiệm đã học; chính sách chọn hành động từ bảng này; reward cung cấp phản hồi. Kết quả cần đạt là robot tự đi từ điểm đầu đến đích bằng chính sách sau train, đồng thời notebook giữ đủ code, output và dữ liệu để kiểm tra lại từng bước.

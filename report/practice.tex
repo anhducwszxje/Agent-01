@@ -1,0 +1,162 @@
+\chapter{Thực hành Q-learning trong mê cung}
+\label{chap:practice}
+\section{Bước 1 Chuẩn bị môi trường chạy}
+Bài toán thực hành sử dụng mê cung ở nguồn [4], gắn với learning agent trong cách phân loại của IBM [2]. Mã được viết lại trong notebook \texttt{AGENT\_01\_Q\_Learning\_Maze.ipynb}. Robot học bằng tương tác với môi trường; không dùng mô hình ngôn ngữ, dữ liệu gán nhãn đường đi hoặc API bên ngoài.
+
+Trong cài đặt, chọn hành động là phần thực thi; cập nhật Q là phần học; reward cung cấp tín hiệu đánh giá; nhánh ngẫu nhiên của $\epsilon$-greedy tạo cơ hội khám phá. Đây là cách liên hệ các thành phần learning agent của IBM với code cụ thể \cite{ibm}.
+
+NumPy lưu bảng Q và tạo số ngẫu nhiên. Matplotlib vẽ mê cung, đồ thị; Pillow ghép các khung hình thành GIF. Thư mục \texttt{artifacts/} lưu bảng Q, log dạng CSV, ảnh và số liệu JSON. Seed của lượt train chính là 42. Bộ sinh số của đánh giá được tạo riêng để không làm thay đổi lịch khám phá trong huấn luyện.
+
+\cellshot{01}{Cell chuẩn bị thư viện và output phiên bản môi trường chạy.}
+
+Ảnh code trong phần này được chụp từ bản HTML của notebook đã thực thi, giữ số \texttt{In} và output dạng văn bản. Các output đồ thị được đặt thành hình riêng ở bước tương ứng để đọc rõ hơn. Code được giữ đầy đủ trong notebook, có thể chạy lại theo thứ tự từ trên xuống.
+
+\clearpage
+\section{Bước 2 Xây dựng trạng thái và luật di chuyển}
+Mảng \texttt{maze} có kích thước $10\times10$, gồm 43 ô trống và 57 ô vật cản. Điểm xuất phát là $(0,0)$, đích là $(9,9)$. Thứ tự hành động trong \texttt{actions} là trái, phải, lên, xuống. Hàm \texttt{valid} kiểm tra tọa độ có nằm trong bản đồ và có phải ô trống hay không.
+
+\cellshot{02}{Khai báo bản đồ, hàm chuyển trạng thái và output kiểm tra môi trường.}
+
+Hàm \texttt{step} là nơi duy nhất áp dụng luật môi trường. Nếu hành động không hợp lệ, robot giữ vị trí hiện tại, nhận $-10$ và kết thúc lượt. Nếu tới đích, reward là $+50$ và lượt cũng kết thúc. Bước hợp lệ chưa tới đích nhận $-1$. Giới hạn 400 hành động chặn trường hợp đi lặp. Cách trả về đồng thời vị trí mới, reward, cờ kết thúc và trạng thái giúp kiểm tra nguyên nhân dừng của mỗi episode.
+
+\clearpage
+\section{Bước 3 Hiển thị môi trường trước huấn luyện}
+Hàm \texttt{draw\_maze} chỉ vẽ trạng thái và dấu vết được truyền vào. Nó không tìm đường hoặc thay đổi bảng Q. Chỉ số hàng tăng theo chiều từ trên xuống, phù hợp cách truy cập phần tử của NumPy. Robot màu cam bắt đầu ở ô xanh; đích được đánh dấu bằng ngôi sao.
+
+\cellshot{03}{Hàm vẽ mê cung và lưu ảnh trạng thái ban đầu trong notebook.}
+
+\resultfigure{maze_before.png}{0.45}{Mê cung trước train. Tác tử chưa có đường đi đã học.}
+
+Ở thời điểm này, thông tin được lập trình sẵn là bản đồ và luật phản hồi. Không có chuỗi vị trí dẫn tới đích được đưa vào hàm chọn hành động. Đường đi chỉ xuất hiện sau khi chính sách được train và thực thi.
+
+\clearpage
+\section{Bước 4 Khởi tạo bảng Q và chính sách hành động}
+Bảng Q có hình dạng $10\times10\times4$, tương ứng 400 giá trị. Bốn giá trị tại mỗi ô ứng với bốn hành động. Các ô vật cản vẫn có chỗ trong mảng để việc đánh chỉ số đơn giản, nhưng không được dùng làm trạng thái hợp lệ. Tất cả giá trị được khởi tạo bằng 0.
+
+\cellshot{04}{Thông số Q-learning, cách chọn hành động và hàm thực thi chính sách.}
+
+Hàm \texttt{choose\_action} dùng $\epsilon$-greedy. Trong train, khi nhiều hành động có giá trị Q bằng nhau, chương trình chọn ngẫu nhiên giữa các hành động đó để tránh thiên lệch do thứ tự trong mảng. Khi demo, \texttt{rollout} chọn trực tiếp \texttt{argmax} và không khám phá.
+
+\texttt{rollout} không loại hành động đâm tường, không cấm quay lại ô cũ và không nhận đường đi từ BFS. Nếu Q học chưa tốt, lỗi vẫn xuất hiện trong kết quả. Cách này kiểm tra hành vi thật của chính sách, tránh việc một bộ lọc tìm đường che đi các quyết định sai.
+
+\clearpage
+\section{Bước 5 Huấn luyện và đọc output của cell train}
+Lượt train chính gồm 5.000 episode, $\alpha=0.1$, $\gamma=0.9$. Epsilon bắt đầu ở 0.5, nhân với 0.995 sau mỗi episode và không nhỏ hơn 0.01. Mỗi lượt bắt đầu lại ở $(0,0)$; chương trình ghi reward, số bước, kết quả và epsilon vào \texttt{history}.
+
+\cellshot{05_code}{Toàn bộ mã vòng train, ghi log và lưu bảng Q trong cell 5.}
+
+\clearpage
+\subsection{Output thực tế của cell train}
+\cellshot{05_output}{Output đầy đủ của cell 5, in thống kê sau mỗi 500 episode.}
+
+Trong phép cập nhật, \texttt{target} bằng reward nếu lượt kết thúc; các bước còn lại cộng thêm $\gamma\max Q(s',a')$. Dòng cập nhật \texttt{q[state][a]} đưa một phần chênh lệch giữa target và giá trị cũ vào bảng Q. Bước cuối chạm giới hạn 400 cũng được xem là kết thúc của lượt hữu hạn trong cài đặt này.
+
+Mỗi dòng log là trung bình của 500 episode vừa chạy. \texttt{eps\_next} là epsilon của episode kế tiếp. Sau train, chương trình lưu \texttt{q\_table.npy} và \texttt{training\_history.csv}; các tệp này do chính cell trên tạo ra.
+
+\clearpage
+\section{Bước 6 Theo dõi quá trình học bằng đồ thị}
+Cell tiếp theo đọc trực tiếp \texttt{history} để vẽ bốn đồ thị. Reward, số bước và tỷ lệ thành công dùng trung bình trượt 100 episode. Đường epsilon thể hiện giá trị thực ở từng lượt, không lấy trung bình trượt.
+
+\cellshot{06}{Code vẽ đường học và output so sánh 500 episode đầu với 500 episode cuối.}
+
+\resultfigure{learning_curves.png}{0.98}{Reward, số bước, tỷ lệ thành công trong train và lịch giảm khám phá.}
+
+\textbf{Quan sát.} Reward trung bình 500 lượt đầu là $-20.098$, chưa có lượt tới đích. 500 lượt cuối có reward trung bình $20.940$ và tỷ lệ thành công $87.6\%$. Trên đồ thị, reward giảm ở giai đoạn đầu rồi tăng mạnh khoảng episode 600--1.000.
+
+\textbf{Diễn giải.} Ban đầu, robot kết thúc sớm do va chạm. Khi đi được xa hơn nhưng chưa tới đích, số bước tăng và hình phạt tích lũy cũng tăng nên reward có thể giảm. Sau khi tìm được đường tới đích, thưởng $+50$ làm tổng reward tăng. Vì vậy, không thể đọc việc reward giảm ban đầu thành kết luận thuật toán hoàn toàn không học.
+
+\textbf{Ảnh hưởng của khám phá.} Train vẫn giữ $\epsilon=0.01$, nên đôi lúc robot thử hành động không tốt và đâm tường. Đường thành công dao động dưới 100\% phù hợp với cơ chế này. Cần đánh giá riêng chính sách greedy để biết bảng Q cuối cùng thực hiện được gì khi tắt khám phá.
+
+\clearpage
+\section{Bước 7 Đánh giá và đối chiếu đường ngắn nhất}
+Chương trình đánh giá ba chính sách trên cùng bản đồ, cùng điểm đầu và cùng giới hạn bước: greedy với Q chưa train, chọn ngẫu nhiên và greedy sau train. Mỗi chính sách chạy 1.000 lượt. Bộ sinh ngẫu nhiên của đánh giá dùng các seed từ 10.000 đến 10.999.
+
+\cellshot{07_code}{Mã đánh giá và BFS chỉ dùng để đối chiếu sau train.}
+
+Hàm BFS tìm đường ngắn nhất trên lưới bằng cách duyệt các ô hợp lệ theo từng lớp khoảng cách. Kết quả chỉ được dùng sau train. Các câu lệnh \texttt{assert} kiểm tra robot đã tới đích, mọi vị trí đều hợp lệ, số bước bằng BFS và reward khớp số hành động.
+
+\clearpage
+\subsection{Output của phép đánh giá}
+\cellshot{07_output}{Output cell 7, gồm ba chính sách và kết quả các phép kiểm tra.}
+
+\begin{table}[H]\centering\small
+\caption{Đánh giá 1.000 lượt cho mỗi chính sách từ $(0,0)$.}
+\begin{tabular}{@{}lrrr@{}}\toprule
+Chính sách & Tới đích & Reward trung bình & Số bước trung bình \\\midrule
+Greedy chưa train & $0.0\%$ & $-10.000$ & $1.000$ \\
+Ngẫu nhiên & $0.0\%$ & $-10.530$ & $1.530$ \\
+Greedy sau train & $100.0\%$ & $27.000$ & $24.000$ \\\bottomrule
+\end{tabular}
+\end{table}
+
+Q ban đầu bằng nhau nên \texttt{argmax} chọn hành động đầu tiên là trái. Từ $(0,0)$, hành động này đi ra ngoài và kết thúc ngay. Chính sách ngẫu nhiên cũng thường thất bại sớm. Số bước thấp của hai chính sách này vì thế không có ý nghĩa tối ưu đường đi.
+
+\clearpage
+\subsection{Đọc kết quả đánh giá cùng các điều kiện chạy}
+\resultfigure{policy_comparison.png}{0.96}{So sánh tỷ lệ tới đích và tổng reward của ba chính sách.}
+
+Đường greedy sau train có 24 hành động, đúng bằng đường ngắn nhất tìm được bằng BFS. Robot nhận 23 lần reward $-1$ và một lần $+50$, nên:
+\[
+R=23\times(-1)+50=27.
+\]
+Số 24 là số hành động; danh sách đường đi có 25 vị trí vì chứa cả vị trí ban đầu. Phân biệt hai cách đếm này tránh sai lệch một bước khi đối chiếu ảnh demo với log.
+
+Tỷ lệ $100\%$ ở đây có điều kiện cụ thể: bản đồ cố định, xuất phát tại $(0,0)$, chuyển động tất định và không khám phá. Với cùng Q và cùng điểm đầu, greedy tạo ra cùng chuỗi hành động trong cả 1.000 lượt. Con số này xác nhận đường đi hoạt động ổn định trong cấu hình đang xét, không phải bằng chứng robot giải được 1.000 mê cung khác nhau.
+
+Trong bài toán này, phạt mỗi bước khiến việc đi vòng giảm tổng reward không chiết khấu. Tuy nhiên, hàm Q được học với $\gamma=0.9$, còn bảng đánh giá ghi tổng reward không chiết khấu. Hai đại lượng có vai trò khác nhau: Q điều khiển lựa chọn hành động; tổng reward dùng để mô tả lượt chạy thực tế. Không lấy trực tiếp một ô Q làm tổng điểm demo.
+
+\clearpage
+\section{Bước 8 Kiểm tra seed và các điểm xuất phát khác}
+Để kiểm tra kết quả có phụ thuộc riêng seed 42 hay không, chương trình train lại từ Q bằng 0 với năm seed: 0, 7, 21, 42 và 99. Mỗi lần vẫn dùng 5.000 episode cùng bộ siêu tham số. Bảng Q của lượt train chính được giữ riêng cho demo và phép kiểm tra điểm đầu.
+
+\cellshot{08}{Code kiểm tra năm seed và output thử tất cả ô xuất phát hợp lệ.}
+
+Cả năm seed đều tới đích sau 24 hành động, nhận reward 27 và không lệch độ dài so với BFS. Kết quả này hỗ trợ nhận xét rằng nghiệm từ $(0,0)$ không chỉ xuất hiện ở một seed đã chọn. Nó vẫn là kiểm tra trên cùng bản đồ và cùng lịch huấn luyện.
+
+Khi đổi điểm xuất phát sang từng ô trống không phải đích, chính sách seed 42 chỉ tới đích từ 27 trong 42 ô, tương đương $64.3\%$. Có 15 ô thất bại. Huấn luyện luôn bắt đầu ở $(0,0)$ nên trải nghiệm tập trung vào các vùng nằm trên hoặc gần đường thường đi; các nhánh ít được khám phá có thể còn giá trị Q chưa đủ chính xác.
+
+Do đó, có thể kết luận robot đã học được đường tối ưu từ điểm đầu được giao, nhưng chưa có một chính sách tốt cho mọi ô trống. Nếu nhiệm vụ yêu cầu xuất phát ở vị trí bất kỳ, cần đổi cách lấy trạng thái ban đầu trong train và đánh giá lại. Không điều chỉnh lại thí nghiệm để xóa những thất bại này khỏi kết quả.
+
+\clearpage
+\section{Bước 9 Demo tự hoạt động sau train}
+Cell demo nạp lại \texttt{artifacts/q\_table.npy}. Mỗi lượt robot chọn \texttt{argmax Q(state)}, gọi \texttt{step}, ghi kết quả rồi tiếp tục cho tới khi kết thúc. Không có lệnh train lại hoặc gọi BFS trong quá trình này. Câu lệnh so sánh hai mảng xác nhận bảng đã nạp đúng với bảng vừa lưu.
+
+\cellshot{09_code}{Mã demo dùng bảng Q đã lưu và lấy các khung hình từ rollout.}
+
+\clearpage
+\subsection{Output từng hành động của tác tử}
+\cellshot{09_output}{Output đầy đủ 24 hành động khi thực thi chính sách sau train.}
+
+Log bắt đầu bằng \texttt{DOWN} từ $(0,0)$ tới $(1,0)$, sau đó robot đi dọc các hành lang để tới vùng bên phải bản đồ. Hành động cuối là \texttt{RIGHT} từ $(9,8)$ tới $(9,9)$, nhận reward $+50$ và trạng thái \texttt{goal}. Chuỗi này được dùng trực tiếp để tạo ảnh demo, không điền thủ công một đường tìm được bằng thuật toán khác.
+
+\clearpage
+\subsection{Các thời điểm trong cùng một lượt tự chạy}
+\resultfigure{demo_contact_sheet.png}{1.0}{Sáu khung hình từ rollout sau train: bước 0, 4, 9, 14, 19 và 24.}
+
+Đường xanh chỉ phần hành trình đã thực hiện đến thời điểm của từng khung hình. Chấm cam là vị trí hiện tại của robot. Ở bước 9, robot ở $(2,5)$; bước 14 ở $(2,8)$; bước 19 ở $(6,7)$. Khung cuối ghi vị trí $(9,9)$, khớp với log và điều kiện kết thúc của môi trường.
+
+Ảnh tổng hợp giúp xem trình tự trên bản in. Tệp \texttt{agent\_demo.gif} đi kèm notebook hiển thị đủ 25 vị trí từ lúc bắt đầu đến khi tới đích. Có thể mở GIF để theo dõi chuyển động mà không cần chạy lại toàn bộ quá trình huấn luyện.
+
+\clearpage
+\section{Bước 10 Xuất demo và lưu kết quả}
+\subsection{Tạo GIF từ rollout thực tế}
+Danh sách \texttt{demo\_path} cung cấp các vị trí liên tiếp. Vòng lặp vẽ từng đoạn đường đã đi, lấy ảnh từ canvas rồi ghép lại bằng Pillow. Các khung cuối được giữ lâu hơn để nhìn rõ trạng thái tới đích. Việc tạo GIF chỉ thể hiện lại kết quả của chính sách, không can thiệp vào hành động.
+
+\cellshot{10}{Code xuất GIF và output số vị trí lấy từ rollout.}
+
+\subsection{Vẽ biểu đồ so sánh chính sách}
+\cellshot{11}{Cell tạo biểu đồ từ bảng kết quả đánh giá và output lưu ảnh.}
+
+Hai biểu đồ sử dụng đúng các giá trị trong danh sách \texttt{results} của Bước 7. Trục trái là phần trăm lượt tới đích; trục phải là tổng reward trung bình. Hình so sánh đã được trình bày cùng phần phân tích để đọc số liệu và nguyên nhân chênh lệch trong cùng ngữ cảnh.
+
+\clearpage
+\subsection{Lưu log, cấu hình và số liệu}
+\cellshot{12}{Cell xuất CSV, JSON và output xác nhận các tệp kết quả.}
+
+\texttt{training\_history.csv} lưu 5.000 dòng log train; \texttt{demo\_trace.csv} lưu 24 hành động demo. \texttt{results.json} giữ cấu hình, phiên bản thư viện, kết quả đánh giá và các trường hợp thất bại để đối chiếu với báo cáo.
+
+\subsection{Chạy lại và chuẩn bị đưa lên GitHub}
+Thư mục bàn giao có notebook đã chạy, \texttt{requirements.txt}, \texttt{README.md}, artifact và nguồn LaTeX. Cài thư viện bằng \texttt{pip install -r requirements.txt}, mở notebook và chọn \texttt{Restart Kernel / Run All} từ thư mục chứa notebook.
+
+Khi đưa lên GitHub, giữ notebook cùng các ảnh, GIF, CSV, JSON và bảng Q trong \texttt{artifacts/}. Tệp \texttt{.gitignore} loại môi trường Python và tệp tạm LaTeX. Notebook giữ sẵn output để đọc trước khi chạy lại.
+

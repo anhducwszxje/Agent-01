@@ -1,0 +1,13 @@
+.venv/
+venv/
+__pycache__/
+.ipynb_checkpoints/
+*.pyc
+report/*.aux
+report/*.log
+report/*.out
+report/*.toc
+report/*.lof
+report/*.lot
+report/*.synctex.gz
+report/main.pdf
